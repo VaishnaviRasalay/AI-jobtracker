@@ -1,8 +1,18 @@
 import React, { useEffect } from 'react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import {
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip,
+  Legend
+} from "recharts";
+import { ResponsiveContainer } from 'recharts';
+import { FaSearch, FaTrash, FaEdit, FaSignOutAlt, FaPlus,FaInbox } from 'react-icons/fa';
 import "./Dashboard.css"
 const Dashboard = () => {
+  const[darktheme,setDarktheme]=useState(true)
   const[search,setSearch]=useState("")
   const[addinput,setAddinput]=useState("")
   const[role,setRole]=useState("")
@@ -52,7 +62,9 @@ const Dashboard = () => {
     const totalapplied=application.filter((ele)=>ele.status==="Applied")
     const totalinterview=application.filter((ele)=>ele.status==="Interview")
     const totalRejected=application.filter((ele)=>ele.status==="Rejected")
-    const totalOffer=application.filter((ele)=>ele.status==="Offer")
+   const totalOffer = application.filter(
+  (ele)=>ele.status==="Offer"
+)
     const filterusers=application.filter((ele)=>{
       return(
       ele.companyname.toLowerCase().includes(search.toLowerCase()) ||
@@ -82,6 +94,7 @@ const Dashboard = () => {
       setDate("")
       setStatus("")
       setError("")
+      setCurrentpage(0)
       }
     }
     const handleDelete=(id)=>{
@@ -136,8 +149,9 @@ useEffect(()=>{
 },[])
 const navigate=useNavigate()
 const handleLogout=()=>{
-  navigate('/')
-  localStorage.removeItem("isLoggedin")
+  document.body.classList.remove("dark");
+  localStorage.removeItem("isLoggedin");
+  navigate("/");
 }
 const filtersearchandstatus=application.filter((ele)=>{
 const matchesSearch =
@@ -154,39 +168,109 @@ const datatodisplay=filtersearchandstatus
 
 const displaylist=datatodisplay.slice(startIndex,endIndex)
 
+const chartData = [
+  { name: "Applied", value: totalapplied.length },
+  { name: "Interview", value: totalinterview.length },
+  { name: "Rejected", value: totalRejected.length },
+  { name: "Offer", value: totalOffer.length }
+];
+const COLORS = [
+  "#22c55e", // Applied - Green
+  "#f59e0b", // Interview - Orange
+  "#ef4444", // Rejected - Red
+  "#3b82f6"  // Offer - Blue
+];
+const toggleTheme=()=>{
+  setDarktheme(!darktheme)
+}
+useEffect(() => {
+  if (darktheme) {
+    document.body.classList.add("dark");
+  } else {
+    document.body.classList.remove("dark");
+  }
+}, [darktheme]);
+
+const successRate =
+  application.length === 0
+    ? 0
+    : ((totalOffer.length / application.length) * 100).toFixed(1);
   return (
     <div className='container'>
       <h1 className="heading">🚀AI Job Application Tracker</h1>
+      <div className={darktheme ? "dark" : ""}></div>
+      <button onClick={toggleTheme}>
+  {darktheme ? "☀ Light Mode" : "🌙 Dark Mode"}
+</button>
       <div>
       <input type='text' value={search} onChange={handleSearch} placeholder='search' className="search"></input>
+
       </div>
-      <input type="text" value={addinput} placeholder="Enter Companyname..."onChange={(e)=>setAddinput(e.target.value)}></input>
+      <input type="text" value={addinput} placeholder="Enter Companyname..."onChange={(e)=>setAddinput(e.target.value)} ></input>
       <input type="text" value={role} placeholder="Enter Role..."onChange={(e)=>setRole(e.target.value)}></input>
       <input type="date"value={date} onChange={(e)=>setDate(e.target.value)}></input>
      
-     <select value={statusfilter} onChange={(e)=>setStatusfilter(e.target.value)}>
-        <option value="All">All</option>
-        <option value="Applied">Applied</option>
-        <option value="Interview">Interview</option>
-        <option value="Rejected">Rejected</option>
-        <option value="Offer">Offer</option>
-      </select>
+     <select value={status} onChange={(e)=>setStatus(e.target.value)}>
+  <option value="">Select Status</option>
+  <option value="Applied">Applied</option>
+  <option value="Interview">Interview</option>
+  <option value="Rejected">Rejected</option>
+  <option value="Offer">Offer</option>
+</select>
 {error && <p style={{color:"red"}}>{error}</p>}
-    {edit===""?<button onClick={handleAdd}>Add</button>:<button onClick={handleUpdate}>Update</button>}  
+    {edit===""?<button onClick={handleAdd} ><FaPlus />Add</button>:<button onClick={handleUpdate}>Update</button>}  
       
       {/* {filterusers.map((ele)=><p>{ele.company} {ele.role} {ele.AppliedDate} {ele.status}</p>)} */}
     <div className='cards'>
-      <diV className='card' id="total"><h3>Total:</h3><p>{application.length}</p></diV>
-      <div className='card' id="applied"><h3>Applied:</h3><p>{totalapplied.length}</p></div>
-      <div className='card' id="interview"><h3>Interview:</h3><p>{totalinterview.length}</p></div>
-      <div className='card' id="rejected"><h3>Rejected:</h3><p>{totalRejected.length}</p></div>
-      <div className='card' id="offer"><h3>Offer:</h3><p>{totalOffer.length}</p></div>
+      <diV className='card' id="total"><h3>Total</h3>
+      <p>{application.length}</p></diV>
+      <div className='card' id="applied"><h3>Applied</h3>
+      <p>{totalapplied.length}</p></div>
+      <div className='card' id="interview"><h3>Interview</h3>
+      <p>{totalinterview.length}</p></div>
+      <div className='card' id="rejected"><h3>Rejected</h3>
+      <p>{totalRejected.length}</p></div>
+      <div className='card' id="offer"><h3>Offer</h3>
+      <p>{totalOffer.length}</p></div>
+      <div className="card success">
+  <h3>Success Rate</h3>
+  <p>{successRate}%</p>
+</div>
      </div>
 
     {search!="" && filterusers.length===0 && <p style={{color:"red"}}>Not found</p>}
-       {datatodisplay.length === 0 && (
-  <p>No applications found</p>
+      {datatodisplay.length === 0 && (
+  <div className="empty-state">
+    <FaInbox size={40} />
+    
+  </div>
 )}
+
+<div className="chart-container">
+  <ResponsiveContainer width="100%" height={300}>
+<PieChart width={400} height={300}>
+  <Pie
+    data={chartData}
+    dataKey="value"
+    nameKey="name"
+    outerRadius={100}
+    innerRadius={50}
+  paddingAngle={5}
+    label
+  >
+  {chartData.map((entry, index) => (
+      <Cell
+        key={index}
+        fill={COLORS[index]}
+      />
+    ))}
+    </Pie>
+  <Tooltip />
+  <Legend />
+</PieChart>
+</ResponsiveContainer>
+</div>
+      <div className='table-container'>
       <table className='table'>
         <tr>
         <th>companyname</th>
@@ -203,25 +287,31 @@ const displaylist=datatodisplay.slice(startIndex,endIndex)
        <td>{ele.companyname}</td>
         <td>{ele.Role}</td>
         <td>{ele.AppliedDate}</td>
-        <td>{ele.status}</td>
+       <td>
+  <span className={`status ${ele.status}`}>
+    {ele.status}
+  </span>
+</td>
         <td>
-         <button onClick={()=>handleDelete(ele.id)} className='delete-btn'>Delete</button></td>
-         <td><button onClick={()=>handleEdit(ele.id)} className='edit-btn'>Edit</button></td>
+         <button onClick={()=>handleDelete(ele.id)} className='delete-btn'><FaTrash />Delete</button></td>
+         <td><button onClick={()=>handleEdit(ele.id)} className='edit-btn'><FaEdit />Edit</button></td>
        </tr>
         
         )
         )}
       
       </table>
-
+        </div>
       <div className='pagination'>
       <button onClick={handleprev} disabled={currentpage===0}>Prev</button>
       <span>{currentpage+1}</span>
       <button onClick={handlenext} disabled={endIndex>=datatodisplay.length}>Next</button>
       </div>
 
+
+        
      <div className='logout-btn'>
-    <button onClick={handleLogout}>Logout</button>
+    <button onClick={handleLogout}><FaSignOutAlt />Logout</button>
     </div>
     
     </div>
