@@ -14,13 +14,6 @@ import "./Dashboard.css";
 import { db } from '../firebase'; 
 import { collection, addDoc, deleteDoc, updateDoc, doc, onSnapshot } from "firebase/firestore";
 
-// Default placeholder jobs defined outside the component
-const DEFAULT_JOBS = [
-  { id: "sample1", companyname: "JPMorgan", Role: "Frontend Developer", AppliedDate: "2026-08-10", status: "Applied" },
-  { id: "sample2", companyname: "Infosys", Role: "React Developer", AppliedDate: "2026-09-05", status: "Interview" },
-  { id: "sample3", companyname: "TCS", Role: "web Developer", AppliedDate: "2026-01-20", status: "Rejected" }
-];
-
 const Dashboard = () => {
   const [darktheme, setDarktheme] = useState(true);
   const [search, setSearch] = useState("");
@@ -33,9 +26,8 @@ const Dashboard = () => {
   const [statusfilter, setStatusfilter] = useState("All");
   const [currentpage, setCurrentpage] = useState(0);
   
+  // Real-time application tracking entirely from Firestore
   const [application, setApplication] = useState([]);
-  // Tracks locally deleted sample IDs so they don't reappear via snapshot loops
-  const [deletedSampleIds, setDeletedSampleIds] = useState([]);
 
   const companiesperpage = 3;
   const startIndex = currentpage * companiesperpage;
@@ -48,37 +40,26 @@ const Dashboard = () => {
         id: doc.id,
         ...doc.data()
       }));
-
-      // Exclude hardcoded samples that the user deleted in this session
-      const activeDefaults = DEFAULT_JOBS.filter(job => !deletedSampleIds.includes(job.id));
-
-      setApplication([...activeDefaults, ...firebaseJobs]);
+      
+      // Update state directly with clean Firebase entries
+      setApplication(firebaseJobs);
     });
 
     return () => unsubscribe();
-  }, [deletedSampleIds]);
+  }, []);
 
-  const totalapplied = application.filter((ele) => (ele.status || "") === "Applied");
-  const totalinterview = application.filter((ele) => (ele.status || "") === "Interview");
-  const totalRejected = application.filter((ele) => (ele.status || "") === "Rejected");
-  const totalOffer = application.filter((ele) => (ele.status || "") === "Offer");
-
-  // Safe filtering logic using fallbacks to empty strings to avoid 'undefined' errors
-  const filterusers = application.filter((ele) => {
-    const company = ele.companyname || "";
-    const jobRole = ele.Role || "";
-    
-    return (
-      company.toLowerCase().includes(search.toLowerCase()) ||
-      jobRole.toLowerCase().includes(search.toLowerCase())
-    );
-  });
+  // Status Metrics 
+  const totalapplied = application.filter((ele) => ele.status === "Applied");
+  const totalinterview = application.filter((ele) => ele.status === "Interview");
+  const totalRejected = application.filter((ele) => ele.status === "Rejected");
+  const totalOffer = application.filter((ele) => ele.status === "Offer");
 
   const handleSearch = (e) => {
     setSearch(e.target.value);
     setCurrentpage(0); // Reset page on new search
   };
 
+  // CREATE: Add new entry to Firestore
   const handleAdd = async () => {
     if (addinput === "" || role === "" || date === "" || status === "") {
       setError("Please fill all fields");
@@ -105,18 +86,16 @@ const Dashboard = () => {
     }
   };
 
+  // DELETE: Delete document from Firestore
   const handleDelete = async (id) => {
     try {
-      if (id.toString().startsWith("sample")) {
-        setDeletedSampleIds(prev => [...prev, id]);
-      } else {
-        await deleteDoc(doc(db, "jobs", id));
-      }
+      await deleteDoc(doc(db, "jobs", id));
     } catch (err) {
       console.error("Error deleting document: ", err);
     }
   };
 
+  // Set up values for editing
   const handleEdit = (id) => {
     let editedid = application.find((ele) => ele.id === id);
     if (editedid) {
@@ -128,30 +107,20 @@ const Dashboard = () => {
     }
   };
 
+  // UPDATE: Update existing document on Firestore
   const handleUpdate = async () => {
     if (addinput === "" || role === "" || date === "" || status === "") {
       setError("Please fill all fields");
       return;
     }
     try {
-      if (edit.toString().startsWith("sample")) {
-        // Turn edited sample jobs into real entries in Firestore
-        await addDoc(collection(db, "jobs"), {
-          companyname: addinput,
-          Role: role,
-          AppliedDate: date,
-          status: status
-        });
-        setDeletedSampleIds(prev => [...prev, edit]);
-      } else {
-        const docRef = doc(db, "jobs", edit);
-        await updateDoc(docRef, {
-          companyname: addinput,
-          Role: role,
-          AppliedDate: date,
-          status: status
-        });
-      }
+      const docRef = doc(db, "jobs", edit);
+      await updateDoc(docRef, {
+        companyname: addinput,
+        Role: role,
+        AppliedDate: date,
+        status: status
+      });
 
       setAddinput("");
       setRole("");
@@ -174,11 +143,11 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const handleLogout = () => {
     document.body.classList.remove("dark");
-    localStorage.removeItem("isLoggedin");
+    localStorage.removeItem("isLoggedin"); // This is just for your Auth state routing
     navigate("/");
   };
 
-  // Safe search and drop-down filter combination logic
+  // Search and drop-down filter combination logic
   const filtersearchandstatus = application.filter((ele) => {
     const company = ele.companyname || "";
     const jobRole = ele.Role || "";
@@ -267,7 +236,6 @@ const Dashboard = () => {
         <div className="card success"><h3>Success Rate</h3><p>{successRate}%</p></div>
       </div>
 
-      {search !== "" && filterusers.length === 0 && <p style={{color: "red"}}>Not found</p>}
       {filtersearchandstatus.length === 0 && (
         <div className="empty-state">
           <FaInbox size={40} />
